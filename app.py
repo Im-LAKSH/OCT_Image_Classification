@@ -48,7 +48,7 @@ with st.sidebar:
     st.markdown("- **Macular Hole**")
     st.markdown("- **Normal Retina**")
     
-    st.warning("⚠️ **Disclaimer:** This tool is for educational/research purposes only. It is not a substitute for professional medical advice.")
+    st.warning("⚠️ **Disclaimer:** This tool is for educational/research purposes only.")
 
 st.title("👁️ Retinal Disease Diagnosis System")
 st.write("Upload a high-quality OCT scan (JPEG/PNG) to get an instant analysis.")
@@ -59,3 +59,57 @@ if uploaded_file is not None:
     if model is None:
         st.error("❌ Model file not found. Please upload 'OCT_ResNet_95_Plus.pth' to the app folder.")
     else:
+        col1, col2 = st.columns(2)
+        
+        image = Image.open(uploaded_file).convert('RGB')
+        
+        with col1:
+            st.subheader("1. Your Scan")
+            st.image(image, use_column_width=True)
+
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        input_tensor = transform(image).unsqueeze(0).to(device)
+
+        if st.button('🔍 Analyze Retina Now', type="primary"):
+            with st.spinner('Analyzing retinal layers...'):
+                with torch.no_grad():
+                    output = model(input_tensor)
+                    probs = F.softmax(output, dim=1)
+                    confidence, predicted = torch.max(probs, 1)
+
+                class_names = ['CSR', 'Diabetic Retinopathy', 'Macular Hole', 'NORMAL']
+                pred_label = class_names[predicted.item()]
+                conf_score = confidence.item() * 100
+
+                target_layers = [model.layer4[-1]]
+                cam = GradCAM(model=model, target_layers=target_layers)
+                grayscale_cam = cam(input_tensor=input_tensor, targets=None)[0, :]
+                img_resized = np.float32(image.resize((224, 224))) / 255
+                heatmap = show_cam_on_image(img_resized, grayscale_cam, use_rgb=True)
+
+            with col2:
+                st.subheader("2. AI Analysis")
+                
+                if pred_label == "NORMAL":
+                    st.success(f"### Diagnosis: {pred_label}")
+                    st.balloons()
+                else:
+                    st.error(f"### Diagnosis: {pred_label}")
+                
+                st.progress(int(conf_score))
+                st.caption(f"Confidence Score: **{conf_score:.2f}%**")
+                
+                st.write("---")
+                st.write("**Attention Map (Why the AI thinks so):**")
+                st.image(heatmap, caption="Red areas = Disease Location", use_column_width=True)
+
+            with st.expander("📊 See Detailed Probability Report"):
+                st.write("Model Confidence per Class:")
+                probs_np = probs.cpu().numpy()[0]
+                for i, name in enumerate(class_names):
+                    st.write(f"- **{name}**: {probs_np[i]*100:.2f}%")
