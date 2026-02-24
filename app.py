@@ -8,7 +8,7 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 st.set_page_config(
-    page_title="RetinaAI - OCT Diagnosis",
+    page_title="Retinal OCT Diagnosis",
     page_icon="👁️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -48,10 +48,9 @@ with st.sidebar:
     st.markdown("- **Macular Hole**")
     st.markdown("- **Normal Retina**")
     
-    st.warning("⚠️ **Disclaimer:** This tool is for educational/research purposes only.")
 
 st.title("👁️ Retinal Disease Diagnosis System")
-st.write("Upload a high-quality OCT scan (JPEG/PNG) to get an instant analysis.")
+st.write("Upload an OCT scan (JPEG/PNG) to get an instant analysis.")
 
 uploaded_file = st.file_uploader("Drop your scan here...", type=["jpg", "png", "jpeg"])
 
